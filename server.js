@@ -9,6 +9,10 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
+// Có thể đổi key trong Render Environment nếu muốn.
+// Nhưng key trong Roblox phải giống hệt key ở đây.
+const BRIDGE_SECRET = process.env.BRIDGE_SECRET || "longmc_bridge_1102153229";
+
 let eventQueue = [];
 let eventId = 1;
 
@@ -20,6 +24,24 @@ let tiktokStatus = {
 	roomId: null,
 	lastError: null
 };
+
+function hasValidKey(req) {
+	const keyFromQuery = req.query.key;
+	const keyFromHeader = req.headers["x-bridge-key"];
+
+	return keyFromQuery === BRIDGE_SECRET || keyFromHeader === BRIDGE_SECRET;
+}
+
+function requireSecret(req, res, next) {
+	if (!hasValidKey(req)) {
+		return res.status(401).json({
+			ok: false,
+			error: "Invalid or missing secret key"
+		});
+	}
+
+	next();
+}
 
 function createEvent(type, data) {
 	const event = {
@@ -141,6 +163,7 @@ async function connectTikTok(username) {
 		}
 
 		const username = getUserName(data);
+
 		const giftName =
 			data?.giftDetails?.giftName ||
 			data?.giftName ||
@@ -184,6 +207,7 @@ app.get("/", (req, res) => {
 	res.json({
 		ok: true,
 		message: "TikTok Roblox Bridge is running",
+		secured: true,
 		queuedEvents: eventQueue.length,
 		tiktok: tiktokStatus
 	});
@@ -192,12 +216,13 @@ app.get("/", (req, res) => {
 app.get("/status", (req, res) => {
 	res.json({
 		ok: true,
+		secured: true,
 		queuedEvents: eventQueue.length,
 		tiktok: tiktokStatus
 	});
 });
 
-app.get("/connect/:username", async (req, res) => {
+app.get("/connect/:username", requireSecret, async (req, res) => {
 	try {
 		const username = req.params.username;
 		const state = await connectTikTok(username);
@@ -222,7 +247,7 @@ app.get("/connect/:username", async (req, res) => {
 	}
 });
 
-app.get("/disconnect", async (req, res) => {
+app.get("/disconnect", requireSecret, async (req, res) => {
 	await disconnectTikTok();
 
 	res.json({
@@ -231,7 +256,7 @@ app.get("/disconnect", async (req, res) => {
 	});
 });
 
-app.get("/events", (req, res) => {
+app.get("/events", requireSecret, (req, res) => {
 	const events = eventQueue.splice(0, 20);
 
 	res.json({
@@ -240,7 +265,7 @@ app.get("/events", (req, res) => {
 	});
 });
 
-app.post("/push", (req, res) => {
+app.post("/push", requireSecret, (req, res) => {
 	const body = req.body || {};
 
 	if (!body.type) {
@@ -264,7 +289,7 @@ app.post("/push", (req, res) => {
 	});
 });
 
-app.get("/fake/comment", (req, res) => {
+app.get("/fake/comment", requireSecret, (req, res) => {
 	const username = req.query.username || "CommentUser";
 	const comment = req.query.comment || "Builderman";
 
@@ -279,7 +304,7 @@ app.get("/fake/comment", (req, res) => {
 	});
 });
 
-app.get("/fake/follow", (req, res) => {
+app.get("/fake/follow", requireSecret, (req, res) => {
 	const username = req.query.username || "FollowUser";
 	const robloxUsername = req.query.robloxUsername || username;
 
@@ -294,7 +319,7 @@ app.get("/fake/follow", (req, res) => {
 	});
 });
 
-app.get("/fake/gift", (req, res) => {
+app.get("/fake/gift", requireSecret, (req, res) => {
 	const username = req.query.username || "GiftUser";
 	const robloxUsername = req.query.robloxUsername || username;
 	const coinValue = Number(req.query.coinValue || 1);
