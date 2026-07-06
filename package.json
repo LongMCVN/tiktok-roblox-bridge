@@ -2,12 +2,14 @@
   "name": "tiktok-roblox-bridge",
   "version": "1.0.0",
   "description": "Bridge server for TikTok Live events to Roblox",
+  "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.18.3"
+    "express": "^4.18.3",
+    "tiktok-live-connector": "^2.4.0"
   }
 }
